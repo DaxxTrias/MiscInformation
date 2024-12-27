@@ -1,0 +1,11 @@
+C:\Users\reformed\Downloads\ExCore\Plugins\Source\TC_MiscInformation-master\obj\Debug\net8.0-windows\win-x64\MiscInformation.csproj.AssemblyReference.cache
+C:\Users\reformed\Downloads\ExCore\Plugins\Source\TC_MiscInformation-master\obj\Debug\net8.0-windows\win-x64\MiscInformation.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\reformed\Downloads\ExCore\Plugins\Source\TC_MiscInformation-master\obj\Debug\net8.0-windows\win-x64\MiscInformation.AssemblyInfoInputs.cache
+C:\Users\reformed\Downloads\ExCore\Plugins\Source\TC_MiscInformation-master\obj\Debug\net8.0-windows\win-x64\MiscInformation.AssemblyInfo.cs
+C:\Users\reformed\Downloads\ExCore\Plugins\Source\TC_MiscInformation-master\obj\Debug\net8.0-windows\win-x64\MiscInformation.csproj.CoreCompileInputs.cache
+C:\Users\reformed\Downloads\ExCore\Plugins\Temp\TC_MiscInformation-master\MiscInformation.deps.json
+C:\Users\reformed\Downloads\ExCore\Plugins\Temp\TC_MiscInformation-master\MiscInformation.dll
+C:\Users\reformed\Downloads\ExCore\Plugins\Source\TC_MiscInformation-master\obj\Debug\net8.0-windows\win-x64\MiscInfo.E9257483.Up2Date
+C:\Users\reformed\Downloads\ExCore\Plugins\Source\TC_MiscInformation-master\obj\Debug\net8.0-windows\win-x64\MiscInformation.dll
+C:\Users\reformed\Downloads\ExCore\Plugins\Source\TC_MiscInformation-master\obj\Debug\net8.0-windows\win-x64\refint\MiscInformation.dll
+C:\Users\reformed\Downloads\ExCore\Plugins\Source\TC_MiscInformation-master\obj\Debug\net8.0-windows\win-x64\ref\MiscInformation.dll
