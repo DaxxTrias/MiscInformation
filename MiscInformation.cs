@@ -272,7 +272,7 @@ namespace MiscInformation
             var rightSideItems = new[]
             {
             //NameArea
-            (areaName, GameController.Area.CurrentArea.AreaColorName),
+            (areaName, Settings.UseBuiltInAreaColor ? GameController.Area.CurrentArea.AreaColorName : Settings.AreaTextColor.Value),
             //-h-m-s to level
             (timeLeft, Settings.TimeLeftColor.Value),
             //0,00 xph*%
