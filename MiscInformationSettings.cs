@@ -9,13 +9,14 @@ namespace MiscInformation
     {
         public MiscInformationSettings()
         {
-            BackgroundColor = new (Color.FromArgb(255, 0, 0, 0)); // Does nothing.
-            AreaTextColor = new (Color.FromArgb(255, 200, 255, 140));
-            XphTextColor = new (Color.FromArgb(220, 190, 130, 255));
+            BackgroundColor = new(Color.FromArgb(255, 0, 0, 0)); // Does nothing.
+            AreaTextColor = new(Color.FromArgb(255, 200, 255, 140));
+            XphTextColor = new(Color.FromArgb(220, 190, 130, 255));
             XphGetLeft = new(Color.FromArgb(220, 190, 130, 255));
             TimeLeftColor = new(Color.FromArgb(220, 190, 130, 255));
             TimerTextColor = new(Color.FromArgb(220, 190, 130, 255));
             LatencyTextColor = new(Color.FromArgb(220, 190, 130, 255));
+            PersistData = new ToggleNode(false);
         }
 
         public ToggleNode Enable { get; set; } = new ToggleNode(true);
@@ -29,5 +30,6 @@ namespace MiscInformation
         public ColorNode TimeLeftColor { get; set; }
         public ColorNode TimerTextColor { get; set; }
         public ColorNode LatencyTextColor { get; set; }
+        public ToggleNode PersistData { get; set; }
     }
 }

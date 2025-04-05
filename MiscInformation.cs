@@ -20,22 +20,22 @@ namespace MiscInformation
         private string areaName = "";
 
         private Dictionary<int, float> ArenaEffectiveLevels = new Dictionary<int, float>
-    {
-        {71, 70.94f},
-        {72, 71.82f},
-        {73, 72.64f},
-        {74, 73.4f},
-        {75, 74.1f},
-        {76, 74.74f},
-        {77, 75.32f},
-        {78, 75.84f},
-        {79, 76.3f},
-        {80, 76.7f},
-        {81, 77.04f},
-        {82, 77.32f},
-        {83, 77.54f},
-        {84, 77.7f}
-    };
+        {
+            {71, 70.94f},
+            {72, 71.82f},
+            {73, 72.64f},
+            {74, 73.4f},
+            {75, 74.1f},
+            {76, 74.74f},
+            {77, 75.32f},
+            {78, 75.84f},
+            {79, 76.3f},
+            {80, 76.7f},
+            {81, 77.04f},
+            {82, 77.32f},
+            {83, 77.54f},
+            {84, 77.7f}
+        };
 
         private TimeCache<bool> CalcXp;
         private bool CanRender;
@@ -123,15 +123,18 @@ namespace MiscInformation
 
         private void OnEntityListWrapperOnPlayerUpdate(object sender, Entity entity)
         {
-            percentGot = 0;
-            xpRate = "0.00 xp/h";
-            timeLeft = "-h -m -s  to level up";
-            getXp = 0;
-            xpLeftQ = 0;
+            if (!Settings.PersistData.Value)
+            {
+                percentGot = 0;
+                xpRate = "0.00 xp/h";
+                timeLeft = "-h -m -s  to level up";
+                getXp = 0;
+                xpLeftQ = 0;
 
-            startTime = lastTime = DateTime.UtcNow;
-            startXp = entity.GetComponent<Player>().XP;
-            levelXpPenalty = LevelXpPenalty();
+                startTime = lastTime = DateTime.UtcNow;
+                startXp = entity.GetComponent<Player>().XP;
+                levelXpPenalty = LevelXpPenalty();
+            }
         }
 
         public override void AreaChange(AreaInstance area)
@@ -252,77 +255,77 @@ namespace MiscInformation
         }
 
         public override void Render()
-{
-    if (!CanRender)
-        return;
-
-        var origStartPoint = GameController.LeftPanel.StartDrawPoint;
-    
-        // Apply X offset
-        var rightHalfDrawPoint = origStartPoint.Translate(
-            Settings.DrawXOffset.Value - GameController.IngameState.IngameUi.MapSideUI.Width);
-    
-        // Add Y offset to the starting Y position for background and text rendering.
-        leftPanelStartDrawRect = new RectangleF(rightHalfDrawPoint.X, rightHalfDrawPoint.Y, 1, 1);
-    
-        var leftSideItems = new[]
         {
+            if (!CanRender)
+                return;
+
+            var origStartPoint = GameController.LeftPanel.StartDrawPoint;
+
+            // Apply X offset
+            var rightHalfDrawPoint = origStartPoint.Translate(
+                Settings.DrawXOffset.Value - GameController.IngameState.IngameUi.MapSideUI.Width);
+
+            // Add Y offset to the starting Y position for background and text rendering.
+            leftPanelStartDrawRect = new RectangleF(rightHalfDrawPoint.X, rightHalfDrawPoint.Y, 1, 1);
+
+            var leftSideItems = new[]
+            {
             (Time, Settings.TimerTextColor),
             (ping, Settings.LatencyTextColor)
         };
-    
-        var rightSideItems = new[]
-        {
+
+            var rightSideItems = new[]
+            {
             (areaName, Settings.UseBuiltInAreaColor ? GameController.Area.CurrentArea.AreaColorName : Settings.AreaTextColor.Value),
             (timeLeft, Settings.TimeLeftColor.Value),
             (xpReceivingText, Settings.XphTextColor.Value),
             (xpGetLeft, Settings.XphTextColor.Value)
         };
-    
-        var rightTextBounds = leftSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList()
-            switch
-        {
-            var s => new Vector2N(s.DefaultIfEmpty(Vector2N.Zero).Max(x => x.X), s.Sum(x => x.Y))
-        };
-    
-        var leftTextBounds = rightSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList()
-            switch
-        {
-            var s => new Vector2N(s.DefaultIfEmpty(Vector2N.Zero).Max(x => x.X), s.Sum(x => x.Y))
-        };
-    
-        var sumX = rightTextBounds.X + leftTextBounds.X + 5;
-        var maxY = Math.Max(rightTextBounds.Y, leftTextBounds.Y);
-    
-        // Apply the Y offset for the background
-        var leftHalfDrawPoint = rightHalfDrawPoint with { X = rightHalfDrawPoint.X - sumX };
-    
-        // Apply the DrawYOffset to the startY for text drawing
-        startY = leftHalfDrawPoint.Y + Settings.DrawYOffset.Value;
-    
-        var bounds = new RectangleF(leftHalfDrawPoint.X, startY - 2, sumX, maxY);
-        Graphics.DrawImage("menu-background.png", bounds, Settings.BackgroundColor);
-    
-        // Adjust the text rendering positions to account for the DrawYOffset
-        Vector2N leftTextPosition = new Vector2N(leftHalfDrawPoint.X, startY);
-        Vector2N rightTextPosition = new Vector2N(rightHalfDrawPoint.X, startY);
-    
-        // Render the left side text items
-        foreach (var (text, color) in leftSideItems)
-        {
-            drawTextVector2 = Graphics.DrawText(text, leftTextPosition, color);
-            leftTextPosition.Y += drawTextVector2.Y;
-        }
-    
-        // Render the right side text items
-        foreach (var (text, color) in rightSideItems)
-        {
-            drawTextVector2 = Graphics.DrawText(text, rightTextPosition, color, FontAlign.Right);
-            rightTextPosition.Y += drawTextVector2.Y;
-        }
-    
-        // Update the StartDrawPoint with the new Y position after the render
-        GameController.LeftPanel.StartDrawPoint = new System.Numerics.Vector2(origStartPoint.X, origStartPoint.Y + maxY + 10);
+
+            var rightTextBounds = leftSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList()
+                switch
+            {
+                var s => new Vector2N(s.DefaultIfEmpty(Vector2N.Zero).Max(x => x.X), s.Sum(x => x.Y))
+            };
+
+            var leftTextBounds = rightSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList()
+                switch
+            {
+                var s => new Vector2N(s.DefaultIfEmpty(Vector2N.Zero).Max(x => x.X), s.Sum(x => x.Y))
+            };
+
+            var sumX = rightTextBounds.X + leftTextBounds.X + 5;
+            var maxY = Math.Max(rightTextBounds.Y, leftTextBounds.Y);
+
+            // Apply the Y offset for the background
+            var leftHalfDrawPoint = rightHalfDrawPoint with { X = rightHalfDrawPoint.X - sumX };
+
+            // Apply the DrawYOffset to the startY for text drawing
+            startY = leftHalfDrawPoint.Y + Settings.DrawYOffset.Value;
+
+            var bounds = new RectangleF(leftHalfDrawPoint.X, startY - 2, sumX, maxY);
+            Graphics.DrawImage("menu-background.png", bounds, Settings.BackgroundColor);
+
+            // Adjust the text rendering positions to account for the DrawYOffset
+            Vector2N leftTextPosition = new Vector2N(leftHalfDrawPoint.X, startY);
+            Vector2N rightTextPosition = new Vector2N(rightHalfDrawPoint.X, startY);
+
+            // Render the left side text items
+            foreach (var (text, color) in leftSideItems)
+            {
+                drawTextVector2 = Graphics.DrawText(text, leftTextPosition, color);
+                leftTextPosition.Y += drawTextVector2.Y;
+            }
+
+            // Render the right side text items
+            foreach (var (text, color) in rightSideItems)
+            {
+                drawTextVector2 = Graphics.DrawText(text, rightTextPosition, color, FontAlign.Right);
+                rightTextPosition.Y += drawTextVector2.Y;
+            }
+
+            // Update the StartDrawPoint with the new Y position after the render
+            GameController.LeftPanel.StartDrawPoint = new System.Numerics.Vector2(origStartPoint.X, origStartPoint.Y + maxY + 10);
         }
     }
 }
