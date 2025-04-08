@@ -123,7 +123,7 @@ namespace MiscInformation
 
         private void OnEntityListWrapperOnPlayerUpdate(object sender, Entity entity)
         {
-            if (!Settings.PersistData.Value)
+            if (!Settings.PersistData.Value || startXp == 0)
             {
                 percentGot = 0;
                 xpRate = "0.00 xp/h";
