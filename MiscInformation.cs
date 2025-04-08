@@ -266,8 +266,9 @@ namespace MiscInformation
             var origStartPoint = GameController.LeftPanel.StartDrawPoint;
 
             // Apply X offset
+            var pos = Settings.DisplayPosition.Value;
             var rightHalfDrawPoint = origStartPoint.Translate(
-                Settings.DrawXOffset.Value - GameController.IngameState.IngameUi.MapSideUI.Width);
+                pos.X - GameController.IngameState.IngameUi.MapSideUI.Width);
 
             // Add Y offset to the starting Y position for background and text rendering.
             leftPanelStartDrawRect = new RectangleF(rightHalfDrawPoint.X, rightHalfDrawPoint.Y, 1, 1);
@@ -305,7 +306,7 @@ namespace MiscInformation
             var leftHalfDrawPoint = rightHalfDrawPoint with { X = rightHalfDrawPoint.X - sumX };
 
             // Apply the DrawYOffset to the startY for text drawing
-            startY = leftHalfDrawPoint.Y + Settings.DrawYOffset.Value;
+            startY = leftHalfDrawPoint.Y + pos.Y;
 
             var bounds = new RectangleF(leftHalfDrawPoint.X, startY - 2, sumX, maxY);
             Graphics.DrawImage("menu-background.png", bounds, Settings.BackgroundColor);

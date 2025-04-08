@@ -17,8 +17,8 @@ namespace MiscInformation
         public ToggleNode Enable { get; set; } = new ToggleNode(true);
         [Menu("Show in Town and Hideout")]
         public ToggleNode ShowInTown { get; set; }
-        public RangeNode<int> DrawXOffset { get; set; } = new RangeNode<int>(0, -3000, 3000);
-        public RangeNode<int> DrawYOffset { get; set; } = new RangeNode<int>(0, -3000, 3000);
+        [Menu("Display Position", "X and Y coordinates to draw on screen")]
+        public RangeNode<Vector2> DisplayPosition { get; set; } = new(new Vector2(160, 160), Vector2.Zero, Vector2.One * 4000);
         public ToggleNode UseBuiltInAreaColor { get; set; } = new ToggleNode(true);
         [Menu("Persist Data", "If enabled data will not reset on area change")]
         public ToggleNode PersistData { get; set; }
