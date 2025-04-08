@@ -259,6 +259,10 @@ namespace MiscInformation
             if (!CanRender)
                 return;
 
+            if (GameController.Area.CurrentArea == null || !Settings.ShowInTown && GameController.Area.CurrentArea.IsTown ||
+                !Settings.ShowInTown && GameController.Area.CurrentArea.IsHideout)
+                return;
+
             var origStartPoint = GameController.LeftPanel.StartDrawPoint;
 
             // Apply X offset
