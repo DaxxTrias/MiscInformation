@@ -115,7 +115,10 @@ namespace MiscInformation
             }, 5000);
 
             GameController.EntityListWrapper.PlayerUpdate += OnEntityListWrapperOnPlayerUpdate;
-            OnEntityListWrapperOnPlayerUpdate(this, GameController.Player);
+            // Only invoke the handler if the player entity is available during init
+            var playerEntity = GameController.Player;
+            if (playerEntity != null)
+                OnEntityListWrapperOnPlayerUpdate(this, playerEntity);
 
             debugInformation = new DebugInformation("Game FPS", "Collect game fps", false);
             return true;
@@ -123,6 +126,10 @@ namespace MiscInformation
 
         private void OnEntityListWrapperOnPlayerUpdate(object sender, Entity entity)
         {
+            var playerComp = entity?.GetComponent<Player>();
+            if (playerComp == null)
+                return;
+
             if (!Settings.PersistData.Value || startXp == 0)
             {
                 percentGot = 0;
@@ -132,7 +139,7 @@ namespace MiscInformation
                 xpLeftQ = 0;
 
                 startTime = lastTime = DateTime.UtcNow;
-                startXp = entity.GetComponent<Player>().XP;
+                startXp = playerComp.XP;
                 levelXpPenalty = LevelXpPenalty();
             }
         }
@@ -217,7 +224,11 @@ namespace MiscInformation
 
         private double LevelXpPenalty()
         {
-            var arenaLevel = GameController.Area.CurrentArea.RealLevel;
+            var area = GameController.Area.CurrentArea;
+            if (area == null)
+                return 1d;
+
+            var arenaLevel = area.RealLevel;
             var characterLevel = GameController.Player.GetComponent<Player>()?.Level ?? 100;
 
 
