@@ -353,78 +353,68 @@ namespace MiscInformation
                 !Settings.ShowInTown && GameController.Area.CurrentArea.IsHideout)
                 return;
 
-            var origStartPoint = GameController.LeftPanel.StartDrawPoint;
+            // Store the original value of StartDrawPoint and restore it at the end (DPSMeter pattern)
+            var originalStartDrawPoint = GameController.LeftPanel.StartDrawPoint;
 
-            // Apply X offset
-            var pos = Settings.DisplayPosition.Value;
-            var rightHalfDrawPoint = origStartPoint.Translate(
-                pos.X - GameController.IngameState.IngameUi.MapSideUI.Width);
-
-            // Establish a stable Y anchor (first observed left panel Y per area)
-            var anchorY = _initialLeftPanelY ?? origStartPoint.Y;
-            if (_initialLeftPanelY == null) _initialLeftPanelY = anchorY;
-
-            // Add Y offset to the starting Y position for background and text rendering.
-            leftPanelStartDrawRect = new RectangleF(rightHalfDrawPoint.X, anchorY + pos.Y, 1, 1);
+            var position = Settings.DisplayPosition.Value;
+            var startY = position.Y;
 
             var leftSideItems = new[]
             {
-            (Time, Settings.TimerTextColor),
-            (ping, Settings.LatencyTextColor)
-        };
+                (Time, Settings.TimerTextColor),
+                (ping, Settings.LatencyTextColor)
+            };
 
             var rightSideItems = new[]
             {
-            (areaName, Settings.UseBuiltInAreaColor ? GameController.Area.CurrentArea.AreaColorName : Settings.AreaTextColor.Value),
-            (timeLeft, Settings.TimeLeftColor.Value),
-            (xpReceivingText, Settings.XphTextColor.Value),
-            (xpGetLeft, Settings.XphTextColor.Value)
-        };
-
-            var rightTextBounds = leftSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList()
-                switch
-            {
-                var s => new Vector2N(s.DefaultIfEmpty(Vector2N.Zero).Max(x => x.X), s.Sum(x => x.Y))
+                (areaName, Settings.UseBuiltInAreaColor ? GameController.Area.CurrentArea.AreaColorName : Settings.AreaTextColor.Value),
+                (timeLeft, Settings.TimeLeftColor.Value),
+                (xpReceivingText, Settings.XphTextColor.Value),
+                (xpGetLeft, Settings.XphTextColor.Value)
             };
 
-            var leftTextBounds = rightSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList()
-                switch
-            {
-                var s => new Vector2N(s.DefaultIfEmpty(Vector2N.Zero).Max(x => x.X), s.Sum(x => x.Y))
-            };
+            // Measure columns to compute layout similar to DPSMeter's simple X/Y handling
+            var leftMeasures = leftSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList();
+            var rightMeasures = rightSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList();
 
-            var sumX = rightTextBounds.X + leftTextBounds.X + 5;
-            var maxY = Math.Max(rightTextBounds.Y, leftTextBounds.Y);
+            var leftMaxX = leftMeasures.DefaultIfEmpty(Vector2N.Zero).Max(v => v.X);
+            var leftTotalY = leftMeasures.Sum(v => v.Y);
 
-            // Apply the Y offset for the background
-            var leftHalfDrawPoint = rightHalfDrawPoint with { X = rightHalfDrawPoint.X - sumX };
+            var rightMaxX = rightMeasures.DefaultIfEmpty(Vector2N.Zero).Max(v => v.X);
+            var rightTotalY = rightMeasures.Sum(v => v.Y);
 
-            // Apply the DrawYOffset to the startY for text drawing
-            startY = anchorY + pos.Y;
+            var padding = 5f;
+            var sumX = leftMaxX + rightMaxX + padding;
+            var maxY = Math.Max(leftTotalY, rightTotalY);
 
-            var bounds = new RectangleF(leftHalfDrawPoint.X, startY - 2, sumX, maxY);
+            // Position left column to the left of the right-anchored position
+            var positionLeft = new Vector2N(position.X - sumX, position.Y);
+
+            // Bounds for tooltip intersection and background
+            var bounds = new RectangleF(positionLeft.X, startY - 2, sumX, maxY);
+            leftPanelStartDrawRect = bounds;
+
+            // Background
             Graphics.DrawImage("menu-background.png", bounds, Settings.BackgroundColor);
 
-            // Adjust the text rendering positions to account for the DrawYOffset
-            Vector2N leftTextPosition = new Vector2N(leftHalfDrawPoint.X, startY);
-            Vector2N rightTextPosition = new Vector2N(rightHalfDrawPoint.X, startY);
+            // Draw text columns
+            Vector2N leftTextPosition = new Vector2N(positionLeft.X, startY);
+            Vector2N rightTextPosition = new Vector2N(position.X, startY);
 
-            // Render the left side text items
             foreach (var (text, color) in leftSideItems)
             {
                 drawTextVector2 = Graphics.DrawText(text, leftTextPosition, color);
                 leftTextPosition.Y += drawTextVector2.Y;
             }
 
-            // Render the right side text items
             foreach (var (text, color) in rightSideItems)
             {
                 drawTextVector2 = Graphics.DrawText(text, rightTextPosition, color, FontAlign.Right);
                 rightTextPosition.Y += drawTextVector2.Y;
             }
 
-            // Update the StartDrawPoint with the new Y position after the render
-            GameController.LeftPanel.StartDrawPoint = new System.Numerics.Vector2(origStartPoint.X, origStartPoint.Y + maxY + 10);
+            // Restore the original StartDrawPoint; do not adjust the global left panel baseline
+            GameController.LeftPanel.StartDrawPoint = originalStartDrawPoint;
         }
     }
 }
