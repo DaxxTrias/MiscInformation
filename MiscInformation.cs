@@ -12,6 +12,7 @@ using ExileCore2.Shared.Helpers;
 using JM.LinqFaster;
 using Input = ExileCore2.Input;
 using Vector2N = System.Numerics.Vector2;
+using System.Runtime.InteropServices;
 
 namespace MiscInformation
 {
@@ -58,6 +59,51 @@ namespace MiscInformation
         private string xpGetLeft = "";
         private string xpRate = "";
         private string xpReceivingText = "";
+        private DateTime _lastHighPingActionUtc = DateTime.MinValue;
+        private float? _initialLeftPanelY;
+
+        private const int KEYEVENTF_EXTENDEDKEY = 0x0001;
+        private const int KEYEVENTF_KEYUP = 0x0002;
+
+        [DllImport("user32.dll")]
+        private static extern uint keybd_event(byte bVk, byte bScan, int dwFlags, int dwExtraInfo);
+
+        private static void PressKey(Keys key)
+        {
+            keybd_event((byte)key, 0, KEYEVENTF_EXTENDEDKEY | 0, 0);
+            keybd_event((byte)key, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+        }
+
+        private bool TryInvokePauseOrMenuViaPluginBridge()
+        {
+            // Try a few conventional method names; succeed on the first found
+            var candidateMethods = new[]
+            {
+                "ReAgent.TriggerPause",
+                "ReAgent.TriggerMainMenu",
+                "ReAgent.Pause",
+                "ReAgent.MainMenu"
+            };
+
+            foreach (var methodName in candidateMethods)
+            {
+                try
+                {
+                    var method = GameController.PluginBridge.GetMethod<Action>(methodName);
+                    if (method != null)
+                    {
+                        method();
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // Ignore and try next candidate
+                }
+            }
+
+            return false;
+        }
 
         public float GetEffectiveLevel(int monsterLevel)
         {
@@ -147,6 +193,7 @@ namespace MiscInformation
         public override void AreaChange(AreaInstance area)
         {
             LevelPenalty.ForceUpdate();
+            _initialLeftPanelY = null;
         }
 
         public override void Tick()
@@ -186,6 +233,38 @@ namespace MiscInformation
             areaName = $"{GameController.Area.CurrentArea.DisplayName}{areaSuffix}";
             latency = $"({GameController.Game.IngameState.ServerData.Latency})";
             ping = $"ping:({GameController.Game.IngameState.ServerData.Latency})";
+
+            // High ping handler
+            if (Settings.EnableHighPingHandler.Value)
+            {
+                try
+                {
+                    var area = GameController.Area.CurrentArea;
+                    if (area is { IsTown: false, IsHideout: false })
+                    {
+                        var latencyMs = GameController.Game.IngameState.ServerData.Latency;
+                        if (latencyMs >= Settings.HighPingThresholdMs.Value)
+                        {
+                            var now = DateTime.UtcNow;
+                            var minNext = _lastHighPingActionUtc.AddMilliseconds(Settings.HighPingCooldownMs.Value);
+                            if (now >= minNext)
+                            {
+                                var invoked = TryInvokePauseOrMenuViaPluginBridge();
+                                if (!invoked)
+                                {
+                                    PressKey(Keys.Escape);
+                                }
+
+                                _lastHighPingActionUtc = now;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore errors during high-ping handling to avoid disrupting normal flow
+                }
+            }
         }
 
         private void CalculateXp()
@@ -281,8 +360,12 @@ namespace MiscInformation
             var rightHalfDrawPoint = origStartPoint.Translate(
                 pos.X - GameController.IngameState.IngameUi.MapSideUI.Width);
 
+            // Establish a stable Y anchor (first observed left panel Y per area)
+            var anchorY = _initialLeftPanelY ?? origStartPoint.Y;
+            if (_initialLeftPanelY == null) _initialLeftPanelY = anchorY;
+
             // Add Y offset to the starting Y position for background and text rendering.
-            leftPanelStartDrawRect = new RectangleF(rightHalfDrawPoint.X, rightHalfDrawPoint.Y, 1, 1);
+            leftPanelStartDrawRect = new RectangleF(rightHalfDrawPoint.X, anchorY + pos.Y, 1, 1);
 
             var leftSideItems = new[]
             {
@@ -317,7 +400,7 @@ namespace MiscInformation
             var leftHalfDrawPoint = rightHalfDrawPoint with { X = rightHalfDrawPoint.X - sumX };
 
             // Apply the DrawYOffset to the startY for text drawing
-            startY = leftHalfDrawPoint.Y + pos.Y;
+            startY = anchorY + pos.Y;
 
             var bounds = new RectangleF(leftHalfDrawPoint.X, startY - 2, sumX, maxY);
             Graphics.DrawImage("menu-background.png", bounds, Settings.BackgroundColor);

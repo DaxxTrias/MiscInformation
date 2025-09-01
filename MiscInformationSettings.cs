@@ -29,5 +29,8 @@ namespace MiscInformation
         public ColorNode TimeLeftColor { get; set; } = new ColorNode(Color.FromArgb(220, 190, 130, 255));
         public ColorNode TimerTextColor { get; set; } = new ColorNode(Color.FromArgb(220, 190, 130, 255));
         public ColorNode LatencyTextColor { get; set; } = new ColorNode(Color.FromArgb(220, 190, 130, 255));
+        [Menu("High Ping Handling", "Pause game if ping exceeds threshhold while outside town")] public ToggleNode EnableHighPingHandler { get; set; } = new ToggleNode(false);
+        [Menu("High Ping Threshold (ms)")] public RangeNode<int> HighPingThresholdMs { get; set; } = new RangeNode<int>(1000, 100, 5000);
+        [Menu("High Ping Cooldown (ms)", "Minimum time between actions to avoid spam")] public RangeNode<int> HighPingCooldownMs { get; set; } = new RangeNode<int>(3000, 0, 30000);
     }
 }
