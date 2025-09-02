@@ -105,6 +105,18 @@ namespace MiscInformation
             return false;
         }
 
+        private bool IsEscapeMenuOpen()
+        {
+            try
+            {
+                return GameController?.Game?.IsEscapeState ?? false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public float GetEffectiveLevel(int monsterLevel)
         {
             return Convert.ToSingle(-0.03 * Math.Pow(monsterLevel, 2) + 5.17 * monsterLevel - 144.9);
@@ -247,7 +259,7 @@ namespace MiscInformation
                         {
                             var now = DateTime.UtcNow;
                             var minNext = _lastHighPingActionUtc.AddMilliseconds(Settings.HighPingCooldownMs.Value);
-                            if (now >= minNext)
+                            if (now >= minNext && !IsEscapeMenuOpen())
                             {
                                 var invoked = TryInvokePauseOrMenuViaPluginBridge();
                                 if (!invoked)
