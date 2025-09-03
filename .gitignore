@@ -393,3 +393,4 @@ Errors.txt
 # Additional manual stuff to ignore
 obj/
 .github
+.cursorrules
