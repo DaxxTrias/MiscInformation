@@ -216,7 +216,20 @@ namespace MiscInformation
         private void TickLogic()
         {
             time += GameController.DeltaTime;
+            
+            // Defensive null checks for game state
+            if (GameController?.Game?.IngameState == null)
+            {
+                CanRender = false;
+                return;
+            }
+
             var gameUi = GameController.Game.IngameState.IngameUi;
+            if (gameUi == null)
+            {
+                CanRender = false;
+                return;
+            }
 
             if (GameController.Area.CurrentArea == null || gameUi.InventoryPanel.IsVisible)
             {
@@ -238,13 +251,28 @@ namespace MiscInformation
             var calcXpValue = CalcXp.Value;
             //var ingameStateCurFps = GameController?.Game?.IngameState?.CurFps ?? 1.0f;
             //debugInformation.Tick = ingameStateCurFps;
-            var areaSuffix = (GameController.Area.CurrentArea.RealLevel >= 68)
-                ? $" - T{GameController.Area.CurrentArea.RealLevel - 67}"
+            
+            var currentArea = GameController.Area.CurrentArea;
+            var areaSuffix = (currentArea.RealLevel >= 68)
+                ? $" - T{currentArea.RealLevel - 67}"
                 : "";
 
-            areaName = $"{GameController.Area.CurrentArea.DisplayName}{areaSuffix}";
-            latency = $"({GameController.Game.IngameState.ServerData.Latency})";
-            ping = $"ping:({GameController.Game.IngameState.ServerData.Latency})";
+            areaName = $"{currentArea.DisplayName}{areaSuffix}";
+            
+            // Defensive access to ServerData.Latency
+            int currentLatency = 0;
+            try
+            {
+                currentLatency = GameController.Game.IngameState.ServerData?.Latency ?? 0;
+            }
+            catch
+            {
+                // ServerData can be null or throw during area transitions
+                currentLatency = 0;
+            }
+            
+            latency = $"({currentLatency})";
+            ping = $"ping:({currentLatency})";
 
             // High ping handler
             if (Settings.EnableHighPingHandler.Value)
@@ -254,7 +282,17 @@ namespace MiscInformation
                     var area = GameController.Area.CurrentArea;
                     if (area is { IsTown: false, IsHideout: false })
                     {
-                        var latencyMs = GameController.Game.IngameState.ServerData.Latency;
+                        int latencyMs = 0;
+                        try
+                        {
+                            latencyMs = GameController.Game.IngameState.ServerData?.Latency ?? 0;
+                        }
+                        catch
+                        {
+                            // ServerData can be null during transitions
+                            return;
+                        }
+
                         if (latencyMs >= Settings.HighPingThresholdMs.Value)
                         {
                             var now = DateTime.UtcNow;
