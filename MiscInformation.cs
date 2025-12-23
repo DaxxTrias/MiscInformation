@@ -253,8 +253,8 @@ namespace MiscInformation
             //debugInformation.Tick = ingameStateCurFps;
             
             var currentArea = GameController.Area.CurrentArea;
-            var areaSuffix = (currentArea.RealLevel >= 68)
-                ? $" - T{currentArea.RealLevel - 67}"
+            var areaSuffix = (currentArea.RealLevel >= 65)
+                ? $" - T{currentArea.RealLevel - 64}"
                 : "";
 
             areaName = $"{currentArea.DisplayName}{areaSuffix}";
