@@ -40,7 +40,7 @@ namespace MiscInformation
     public class CloneFrameSettings
     {
         // TODO: Investigate direct skill icon/texture data from ExileCore memory to replace screen capture.
-        [Menu("Enable Clone Frame", "Incredibly performance intensive. Capture only the skills you actually want to see. Lower values = more performance intensive.")]
+        [Menu("Enable Clone Frame", "Incredibly performance intensive. Capture only the skills you actually want to see. Less capture slots = better performance.")]
         public ToggleNode Enable { get; set; } = new ToggleNode(false);
 
         [Menu("Show in Town and Hideout")]
@@ -79,7 +79,7 @@ namespace MiscInformation
         [Menu("Opacity", "0 is invisible, 255 is fully opaque.")]
         public RangeNode<int> Opacity { get; set; } = new RangeNode<int>(150, 0, 255);
 
-        [Menu("Refresh Interval (ms)", "How often to sample selected slots. Unchanged snapshots reuse cached textures. Lower values = more performance intensive.")]
+        [Menu("Refresh Interval (ms)", "How often to sample selected slots. Unchanged snapshots reuse cached textures. Lower values = better performance.")]
         public RangeNode<int> RefreshIntervalMs { get; set; } = new RangeNode<int>(250, 16, 1000);
 
         [Menu("Draw Source Outline")]
