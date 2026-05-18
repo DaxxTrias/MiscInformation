@@ -488,6 +488,12 @@ namespace MiscInformation
 
             try
             {
+                if (GameController.Game.IngameState.IngameUi.WorldMap.IsVisible)
+                {
+                    cloneFrame.Dispose();
+                    return;
+                }
+
                 cloneFrame.Render(
                     settings,
                     GameController.Window.GetWindowRectangle(),
