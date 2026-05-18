@@ -167,9 +167,11 @@ namespace MiscInformation
                         0,
                         slot.Bitmap!.Size);
 
-                    CopyBitmapToImage(slot, slot.Bitmap!, slot.Image!);
-                    _graphics.AddOrUpdateImage(_textureNames[childIndex], slot.Image!);
-                    slot.HasTexture = true;
+                    if (TryCopyChangedBitmapToImage(slot, slot.Bitmap!, slot.Image!))
+                    {
+                        _graphics.AddOrUpdateImage(_textureNames[childIndex], slot.Image!);
+                        slot.HasTexture = true;
+                    }
                 }
                 catch
                 {
@@ -193,10 +195,12 @@ namespace MiscInformation
             slot.Image = new Image<Rgba32>(width, height);
             slot.BitmapWidth = width;
             slot.BitmapHeight = height;
-            slot.PixelBuffer = new byte[width * height * 4];
+            slot.PixelBuffer = Array.Empty<byte>();
+            slot.PreviousPixelBuffer = Array.Empty<byte>();
+            slot.HasSnapshot = false;
         }
 
-        private static void CopyBitmapToImage(CaptureSlot slot, GdiBitmap bitmap, Image<Rgba32> image)
+        private static bool TryCopyChangedBitmapToImage(CaptureSlot slot, GdiBitmap bitmap, Image<Rgba32> image)
         {
             var rect = new GdiRectangle(0, 0, bitmap.Width, bitmap.Height);
             var data = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
@@ -208,7 +212,15 @@ namespace MiscInformation
                 if (slot.PixelBuffer.Length < requiredBytes)
                     slot.PixelBuffer = new byte[requiredBytes];
 
+                if (slot.PreviousPixelBuffer.Length < requiredBytes)
+                    slot.PreviousPixelBuffer = new byte[requiredBytes];
+
                 Marshal.Copy(data.Scan0, slot.PixelBuffer, 0, requiredBytes);
+
+                var currentPixels = slot.PixelBuffer.AsSpan(0, requiredBytes);
+                var previousPixels = slot.PreviousPixelBuffer.AsSpan(0, requiredBytes);
+                if (slot.HasSnapshot && currentPixels.SequenceEqual(previousPixels))
+                    return false;
 
                 image.ProcessPixelRows(accessor =>
                 {
@@ -229,6 +241,10 @@ namespace MiscInformation
                         }
                     }
                 });
+
+                currentPixels.CopyTo(previousPixels);
+                slot.HasSnapshot = true;
+                return true;
             }
             finally
             {
@@ -266,6 +282,7 @@ namespace MiscInformation
             }
 
             slot.HasTexture = false;
+            slot.HasSnapshot = false;
         }
 
         private sealed class CaptureSlot : IDisposable
@@ -274,7 +291,9 @@ namespace MiscInformation
             public GdiGraphics? Graphics { get; set; }
             public Image<Rgba32>? Image { get; set; }
             public byte[] PixelBuffer { get; set; } = Array.Empty<byte>();
+            public byte[] PreviousPixelBuffer { get; set; } = Array.Empty<byte>();
             public bool HasTexture { get; set; }
+            public bool HasSnapshot { get; set; }
             public int BitmapWidth { get; set; }
             public int BitmapHeight { get; set; }
 
@@ -287,9 +306,11 @@ namespace MiscInformation
                 Image?.Dispose();
                 Image = null;
                 PixelBuffer = Array.Empty<byte>();
+                PreviousPixelBuffer = Array.Empty<byte>();
                 BitmapWidth = 0;
                 BitmapHeight = 0;
                 HasTexture = false;
+                HasSnapshot = false;
             }
         }
 

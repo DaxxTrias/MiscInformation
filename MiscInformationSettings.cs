@@ -39,7 +39,7 @@ namespace MiscInformation
     [Submenu(CollapsedByDefault = true)]
     public class CloneFrameSettings
     {
-        [Menu("Enable Clone Frame")]
+        [Menu("Enable Clone Frame", "Incredibly performance intensive. Capture only the skills you actually want to see.")]
         public ToggleNode Enable { get; set; } = new ToggleNode(false);
 
         [Menu("Show in Town and Hideout")]
@@ -78,8 +78,8 @@ namespace MiscInformation
         [Menu("Opacity", "0 is invisible, 255 is fully opaque.")]
         public RangeNode<int> Opacity { get; set; } = new RangeNode<int>(150, 0, 255);
 
-        [Menu("Refresh Interval (ms)", "Higher values reduce capture cost. 66ms is about 15 fps.")]
-        public RangeNode<int> RefreshIntervalMs { get; set; } = new RangeNode<int>(66, 16, 1000);
+        [Menu("Refresh Interval (ms)", "How often to sample selected slots. Unchanged snapshots reuse cached textures.")]
+        public RangeNode<int> RefreshIntervalMs { get; set; } = new RangeNode<int>(250, 16, 1000);
 
         [Menu("Draw Source Outline")]
         public ToggleNode DrawSourceOutline { get; set; } = new ToggleNode(false);
