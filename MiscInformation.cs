@@ -488,7 +488,10 @@ namespace MiscInformation
 
             try
             {
-                cloneFrame.Render(settings, GameController.Window.GetWindowRectangle());
+                cloneFrame.Render(
+                    settings,
+                    GameController.Window.GetWindowRectangle(),
+                    GameController.Game.IngameState.IngameUi.SkillBar);
             }
             catch
             {

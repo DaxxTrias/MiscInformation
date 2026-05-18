@@ -32,7 +32,7 @@ namespace MiscInformation
         [Menu("High Ping Handling", "Pause game if ping exceeds threshhold while outside town")] public ToggleNode EnableHighPingHandler { get; set; } = new ToggleNode(false);
         [Menu("High Ping Threshold (ms)")] public RangeNode<int> HighPingThresholdMs { get; set; } = new RangeNode<int>(1000, 100, 5000);
         [Menu("High Ping Cooldown (ms)", "Minimum time between actions to avoid spam")] public RangeNode<int> HighPingCooldownMs { get; set; } = new RangeNode<int>(3000, 0, 30000);
-        [Menu("Clone Frame / Ability Mirror", "Capture a small client-area region and redraw it elsewhere.")]
+        [Menu("Clone Frame / Ability Mirror", "Mirror selected skill-bar child rects in a single horizontal line.")]
         public CloneFrameSettings CloneFrame { get; set; } = new CloneFrameSettings();
     }
 
@@ -45,17 +45,35 @@ namespace MiscInformation
         [Menu("Show in Town and Hideout")]
         public ToggleNode ShowInTown { get; set; } = new ToggleNode(true);
 
-        [Menu("Source Position", "Top-left corner of the captured region, relative to the game client.")]
-        public RangeNode<Vector2> SourcePosition { get; set; } = new RangeNode<Vector2>(new Vector2(1430, 1015), new Vector2(-4000, -4000), Vector2.One * 4000);
+        [Menu("Capture Child 0")]
+        public ToggleNode CaptureChild0 { get; set; } = new ToggleNode(false);
 
-        [Menu("Source Size", "Width and height of the captured region.")]
-        public RangeNode<Vector2> SourceSize { get; set; } = new RangeNode<Vector2>(new Vector2(256, 48), Vector2.One, Vector2.One * 256);
+        [Menu("Capture Child 1")]
+        public ToggleNode CaptureChild1 { get; set; } = new ToggleNode(false);
+
+        [Menu("Capture Child 2")]
+        public ToggleNode CaptureChild2 { get; set; } = new ToggleNode(false);
+
+        [Menu("Capture Child 3")]
+        public ToggleNode CaptureChild3 { get; set; } = new ToggleNode(true);
+
+        [Menu("Capture Child 4")]
+        public ToggleNode CaptureChild4 { get; set; } = new ToggleNode(true);
+
+        [Menu("Capture Child 5")]
+        public ToggleNode CaptureChild5 { get; set; } = new ToggleNode(true);
+
+        [Menu("Capture Child 6")]
+        public ToggleNode CaptureChild6 { get; set; } = new ToggleNode(true);
+
+        [Menu("Capture Child 7")]
+        public ToggleNode CaptureChild7 { get; set; } = new ToggleNode(true);
 
         [Menu("Target Position", "Top-left corner where the captured region is drawn.")]
-        public RangeNode<Vector2> TargetPosition { get; set; } = new RangeNode<Vector2>(new Vector2(880, 290), new Vector2(-4000, -4000), Vector2.One * 4000);
+        public RangeNode<Vector2> TargetPosition { get; set; } = new RangeNode<Vector2>(new Vector2(850, 315), new Vector2(-4000, -4000), Vector2.One * 4000);
 
-        [Menu("Target Size", "Width and height of the mirrored image.")]
-        public RangeNode<Vector2> TargetSize { get; set; } = new RangeNode<Vector2>(new Vector2(150, 55), Vector2.One, Vector2.One * 2000);
+        [Menu("Target Size", "Width and height of each mirrored skill tile.")]
+        public RangeNode<Vector2> TargetSize { get; set; } = new RangeNode<Vector2>(new Vector2(40, 40), Vector2.One, Vector2.One * 2000);
 
         [Menu("Opacity", "0 is invisible, 255 is fully opaque.")]
         public RangeNode<int> Opacity { get; set; } = new RangeNode<int>(150, 0, 255);
