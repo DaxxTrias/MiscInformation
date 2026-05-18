@@ -336,7 +336,9 @@ namespace MiscInformation
                 var xpLeft = Constants.PlayerXpLevels[level + 1] - currentXp;
                 xpLeftQ = xpLeft;
                 var time = TimeSpan.FromHours(xpLeft / rate);
-                timeLeft = $"{time.Hours:0}h {time.Minutes:00}m {time.Seconds:00}s to level up";
+                timeLeft = time.TotalDays >= 1
+                    ? ">1 day to level up"
+                    : $"{time.Hours:0}h {time.Minutes:00}m {time.Seconds:00}s to level up";
 
                 if (getXp == 0)
                     percentGot = 0;
