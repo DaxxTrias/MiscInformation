@@ -17,33 +17,37 @@ namespace MiscInformation
 {
     internal sealed class ScreenCloneFrame : IDisposable
     {
-        private const string TextureNamePrefix = "MiscInformation.CloneFrame.";
+        private const string TextureName = "MiscInformation.CloneFrame";
         private const int SkillBarCaptureChildLimit = 8;
         private const int MaxCaptureDimension = 512;
 
         private readonly ExileCore2.Graphics _graphics;
-        private readonly CaptureSlot[] _captureSlots = new CaptureSlot[SkillBarCaptureChildLimit];
         private readonly RectangleF[] _sourceRects = new RectangleF[SkillBarCaptureChildLimit];
         private readonly int[] _sourceChildIndices = new int[SkillBarCaptureChildLimit];
-        private readonly string[] _textureNames = new string[SkillBarCaptureChildLimit];
+        private GdiBitmap? _captureBitmap;
+        private GdiGraphics? _captureGraphics;
+        private Image<Rgba32>? _outputImage;
+        private byte[] _captureBuffer = Array.Empty<byte>();
+        private byte[] _outputBuffer = Array.Empty<byte>();
+        private byte[] _previousOutputBuffer = Array.Empty<byte>();
         private DateTime _nextCaptureUtc = DateTime.MinValue;
+        private bool _hasTexture;
+        private bool _hasSnapshot;
+        private int _captureBitmapWidth;
+        private int _captureBitmapHeight;
+        private int _outputWidth;
+        private int _outputHeight;
 
         public ScreenCloneFrame(ExileCore2.Graphics graphics)
         {
             _graphics = graphics;
-
-            for (var i = 0; i < SkillBarCaptureChildLimit; i++)
-            {
-                _captureSlots[i] = new CaptureSlot();
-                _textureNames[i] = $"{TextureNamePrefix}{i}";
-            }
         }
 
         public void Render(CloneFrameSettings settings, RectangleF windowRect, SkillBarElement skillBar)
         {
             if (!settings.Enable.Value)
             {
-                DisposeTextures();
+                DisposeTexture();
                 return;
             }
 
@@ -51,41 +55,41 @@ namespace MiscInformation
             if (targetSize.X < 1 || targetSize.Y < 1)
                 return;
 
-            if (!TryGetSelectedSkillSourceRects(settings, skillBar, out var selectedCount))
+            if (!TryGetSelectedSkillSourceRects(settings, skillBar, out var selectedCount, out var captureRect))
             {
-                DisposeTextures();
+                DisposeTexture();
                 return;
             }
 
             var targetPosition = settings.TargetPosition.Value;
-            DisposeUnselectedTextures(settings);
-            TryRefreshTextures(settings, windowRect, selectedCount);
+            TryRefreshTexture(settings, windowRect, selectedCount, captureRect);
 
-            var opacity = Math.Clamp(settings.Opacity.Value, 0, 255);
-            var tint = GdiColor.FromArgb(opacity, GdiColor.White);
-            for (var i = 0; i < selectedCount; i++)
+            if (_hasTexture)
             {
-                var childIndex = _sourceChildIndices[i];
                 var targetRect = new RectangleF(
-                    targetPosition.X + targetSize.X * i,
+                    targetPosition.X,
                     targetPosition.Y,
-                    targetSize.X,
+                    targetSize.X * selectedCount,
                     targetSize.Y);
 
-                if (_captureSlots[childIndex].HasTexture)
-                    _graphics.DrawImage(_textureNames[childIndex], targetRect, tint);
-
-                if (settings.DrawSourceOutline.Value)
-                    _graphics.DrawFrame(_sourceRects[i], GdiColor.DeepSkyBlue, 1);
+                var opacity = Math.Clamp(settings.Opacity.Value, 0, 255);
+                _graphics.DrawImage(TextureName, targetRect, GdiColor.FromArgb(opacity, GdiColor.White));
 
                 if (settings.DrawTargetOutline.Value)
                     _graphics.DrawFrame(targetRect, GdiColor.Gold, 1);
             }
+
+            if (settings.DrawSourceOutline.Value)
+            {
+                for (var i = 0; i < selectedCount; i++)
+                    _graphics.DrawFrame(_sourceRects[i], GdiColor.DeepSkyBlue, 1);
+            }
         }
 
-        private bool TryGetSelectedSkillSourceRects(CloneFrameSettings settings, SkillBarElement skillBar, out int selectedCount)
+        private bool TryGetSelectedSkillSourceRects(CloneFrameSettings settings, SkillBarElement skillBar, out int selectedCount, out RectangleF captureRect)
         {
             selectedCount = 0;
+            captureRect = RectangleF.Empty;
 
             if (skillBar == null || skillBar.Address == 0 || !skillBar.IsValid || !skillBar.IsVisible)
                 return false;
@@ -94,6 +98,11 @@ namespace MiscInformation
             var availableChildCount = Math.Min(children.Count, SkillBarCaptureChildLimit);
             if (availableChildCount < 1)
                 return false;
+
+            var left = float.MaxValue;
+            var top = float.MaxValue;
+            var right = float.MinValue;
+            var bottom = float.MinValue;
 
             for (var i = 0; i < availableChildCount; i++)
             {
@@ -110,10 +119,23 @@ namespace MiscInformation
 
                 _sourceRects[selectedCount] = new RectangleF(rect.X, rect.Y, rect.Width, rect.Height);
                 _sourceChildIndices[selectedCount] = i;
+                left = MathF.Min(left, rect.X);
+                top = MathF.Min(top, rect.Y);
+                right = MathF.Max(right, rect.X + rect.Width);
+                bottom = MathF.Max(bottom, rect.Y + rect.Height);
                 selectedCount++;
             }
 
-            return selectedCount > 0;
+            if (selectedCount == 0)
+                return false;
+
+            var width = right - left;
+            var height = bottom - top;
+            if (width <= 1 || height <= 1 || width > MaxCaptureDimension || height > MaxCaptureDimension)
+                return false;
+
+            captureRect = new RectangleF(left, top, width, height);
+            return true;
         }
 
         private static bool IsCaptureEnabled(CloneFrameSettings settings, int childIndex)
@@ -134,13 +156,20 @@ namespace MiscInformation
 
         public void Dispose()
         {
-            DisposeTextures();
-
-            for (var i = 0; i < _captureSlots.Length; i++)
-                _captureSlots[i].Dispose();
+            DisposeTexture();
+            _captureGraphics?.Dispose();
+            _captureGraphics = null;
+            _captureBitmap?.Dispose();
+            _captureBitmap = null;
+            _outputImage?.Dispose();
+            _outputImage = null;
+            _captureBuffer = Array.Empty<byte>();
+            _outputBuffer = Array.Empty<byte>();
+            _previousOutputBuffer = Array.Empty<byte>();
+            _hasSnapshot = false;
         }
 
-        private void TryRefreshTextures(CloneFrameSettings settings, RectangleF windowRect, int selectedCount)
+        private void TryRefreshTexture(CloneFrameSettings settings, RectangleF windowRect, int selectedCount, RectangleF captureRect)
         {
             var now = DateTime.UtcNow;
             if (now < _nextCaptureUtc)
@@ -148,60 +177,51 @@ namespace MiscInformation
 
             _nextCaptureUtc = now.AddMilliseconds(Math.Max(16, settings.RefreshIntervalMs.Value));
 
-            for (var i = 0; i < selectedCount; i++)
+            var captureWidth = Math.Max(1, (int)MathF.Round(captureRect.Width));
+            var captureHeight = Math.Max(1, (int)MathF.Round(captureRect.Height));
+
+            try
             {
-                var childIndex = _sourceChildIndices[i];
-                var sourceRect = _sourceRects[i];
-                var width = Math.Max(1, (int)MathF.Round(sourceRect.Width));
-                var height = Math.Max(1, (int)MathF.Round(sourceRect.Height));
-                var slot = _captureSlots[childIndex];
+                EnsureCaptureBitmap(captureWidth, captureHeight);
 
-                try
+                _captureGraphics!.CopyFromScreen(
+                    (int)MathF.Round(windowRect.X + captureRect.X),
+                    (int)MathF.Round(windowRect.Y + captureRect.Y),
+                    0,
+                    0,
+                    _captureBitmap!.Size);
+
+                if (TryComposeChangedOutput(captureRect, selectedCount))
                 {
-                    EnsureBitmap(slot, childIndex, width, height);
-
-                    slot.Graphics!.CopyFromScreen(
-                        (int)MathF.Round(windowRect.X + sourceRect.X),
-                        (int)MathF.Round(windowRect.Y + sourceRect.Y),
-                        0,
-                        0,
-                        slot.Bitmap!.Size);
-
-                    if (TryCopyChangedBitmapToImage(slot, slot.Bitmap!, slot.Image!))
-                    {
-                        _graphics.AddOrUpdateImage(_textureNames[childIndex], slot.Image!);
-                        slot.HasTexture = true;
-                    }
+                    _graphics.AddOrUpdateImage(TextureName, _outputImage!);
+                    _hasTexture = true;
                 }
-                catch
-                {
-                    DisposeTexture(slot, _textureNames[childIndex]);
-                }
+            }
+            catch
+            {
+                DisposeTexture();
             }
         }
 
-        private void EnsureBitmap(CaptureSlot slot, int childIndex, int width, int height)
+        private void EnsureCaptureBitmap(int width, int height)
         {
-            if (slot.Bitmap != null && slot.BitmapWidth == width && slot.BitmapHeight == height)
+            if (_captureBitmap != null && _captureBitmapWidth == width && _captureBitmapHeight == height)
                 return;
 
-            DisposeTexture(slot, _textureNames[childIndex]);
-            slot.Graphics?.Dispose();
-            slot.Graphics = null;
-            slot.Bitmap?.Dispose();
-            slot.Bitmap = new GdiBitmap(width, height, PixelFormat.Format32bppArgb);
-            slot.Graphics = GdiGraphics.FromImage(slot.Bitmap);
-            slot.Image?.Dispose();
-            slot.Image = new Image<Rgba32>(width, height);
-            slot.BitmapWidth = width;
-            slot.BitmapHeight = height;
-            slot.PixelBuffer = Array.Empty<byte>();
-            slot.PreviousPixelBuffer = Array.Empty<byte>();
-            slot.HasSnapshot = false;
+            _captureGraphics?.Dispose();
+            _captureGraphics = null;
+            _captureBitmap?.Dispose();
+            _captureBitmap = new GdiBitmap(width, height, PixelFormat.Format32bppArgb);
+            _captureGraphics = GdiGraphics.FromImage(_captureBitmap);
+            _captureBitmapWidth = width;
+            _captureBitmapHeight = height;
+            _captureBuffer = Array.Empty<byte>();
+            _hasSnapshot = false;
         }
 
-        private static bool TryCopyChangedBitmapToImage(CaptureSlot slot, GdiBitmap bitmap, Image<Rgba32> image)
+        private bool TryComposeChangedOutput(RectangleF captureRect, int selectedCount)
         {
+            var bitmap = _captureBitmap!;
             var rect = new GdiRectangle(0, 0, bitmap.Width, bitmap.Height);
             var data = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
 
@@ -209,41 +229,42 @@ namespace MiscInformation
             {
                 var stride = Math.Abs(data.Stride);
                 var requiredBytes = stride * bitmap.Height;
-                if (slot.PixelBuffer.Length < requiredBytes)
-                    slot.PixelBuffer = new byte[requiredBytes];
+                if (_captureBuffer.Length < requiredBytes)
+                    _captureBuffer = new byte[requiredBytes];
 
-                if (slot.PreviousPixelBuffer.Length < requiredBytes)
-                    slot.PreviousPixelBuffer = new byte[requiredBytes];
+                Marshal.Copy(data.Scan0, _captureBuffer, 0, requiredBytes);
+                var outputWidth = 0;
+                var outputHeight = 0;
+                for (var i = 0; i < selectedCount; i++)
+                {
+                    outputWidth += Math.Max(1, (int)MathF.Round(_sourceRects[i].Width));
+                    outputHeight = Math.Max(outputHeight, Math.Max(1, (int)MathF.Round(_sourceRects[i].Height)));
+                }
 
-                Marshal.Copy(data.Scan0, slot.PixelBuffer, 0, requiredBytes);
+                EnsureOutputImage(outputWidth, outputHeight);
+                Array.Clear(_outputBuffer, 0, outputWidth * outputHeight * 4);
 
-                var currentPixels = slot.PixelBuffer.AsSpan(0, requiredBytes);
-                var previousPixels = slot.PreviousPixelBuffer.AsSpan(0, requiredBytes);
-                if (slot.HasSnapshot && currentPixels.SequenceEqual(previousPixels))
+                var destinationX = 0;
+                for (var i = 0; i < selectedCount; i++)
+                {
+                    var sourceRect = _sourceRects[i];
+                    var sourceX = Math.Max(0, (int)MathF.Round(sourceRect.X - captureRect.X));
+                    var sourceY = Math.Max(0, (int)MathF.Round(sourceRect.Y - captureRect.Y));
+                    var sourceWidth = Math.Max(1, (int)MathF.Round(sourceRect.Width));
+                    var sourceHeight = Math.Max(1, (int)MathF.Round(sourceRect.Height));
+                    ComposeSlot(data.Stride, stride, sourceX, sourceY, sourceWidth, sourceHeight, destinationX, outputWidth);
+                    destinationX += sourceWidth;
+                }
+
+                var outputBytes = outputWidth * outputHeight * 4;
+                var currentPixels = _outputBuffer.AsSpan(0, outputBytes);
+                var previousPixels = _previousOutputBuffer.AsSpan(0, outputBytes);
+                if (_hasSnapshot && currentPixels.SequenceEqual(previousPixels))
                     return false;
 
-                image.ProcessPixelRows(accessor =>
-                {
-                    for (var y = 0; y < accessor.Height; y++)
-                    {
-                        var sourceY = data.Stride < 0 ? accessor.Height - 1 - y : y;
-                        var sourceOffset = sourceY * stride;
-                        var row = accessor.GetRowSpan(y);
-
-                        for (var x = 0; x < row.Length; x++)
-                        {
-                            var pixelOffset = sourceOffset + x * 4;
-                            row[x] = new Rgba32(
-                                slot.PixelBuffer[pixelOffset + 2],
-                                slot.PixelBuffer[pixelOffset + 1],
-                                slot.PixelBuffer[pixelOffset],
-                                slot.PixelBuffer[pixelOffset + 3]);
-                        }
-                    }
-                });
-
                 currentPixels.CopyTo(previousPixels);
-                slot.HasSnapshot = true;
+                _hasSnapshot = true;
+                CopyOutputBufferToImage(outputWidth, outputHeight);
                 return true;
             }
             finally
@@ -252,66 +273,87 @@ namespace MiscInformation
             }
         }
 
-        private void DisposeTextures()
+        private void ComposeSlot(int sourceDataStride, int sourceStride, int sourceX, int sourceY, int sourceWidth, int sourceHeight, int destinationX, int outputWidth)
         {
-            for (var i = 0; i < _captureSlots.Length; i++)
-                DisposeTexture(_captureSlots[i], _textureNames[i]);
-        }
+            var clampedWidth = Math.Min(sourceWidth, _captureBitmapWidth - sourceX);
+            var clampedHeight = Math.Min(sourceHeight, _captureBitmapHeight - sourceY);
+            if (sourceX < 0 || sourceY < 0 || clampedWidth <= 0 || clampedHeight <= 0)
+                return;
 
-        private void DisposeUnselectedTextures(CloneFrameSettings settings)
-        {
-            for (var i = 0; i < _captureSlots.Length; i++)
+            for (var y = 0; y < clampedHeight; y++)
             {
-                if (!IsCaptureEnabled(settings, i))
-                    DisposeTexture(_captureSlots[i], _textureNames[i]);
+                var captureY = sourceY + y;
+                if (captureY < 0 || captureY >= _captureBitmapHeight)
+                    continue;
+
+                var sourceRow = sourceDataStride < 0 ? _captureBitmapHeight - 1 - captureY : captureY;
+                var sourceOffset = sourceRow * sourceStride + sourceX * 4;
+                var destinationOffset = (y * outputWidth + destinationX) * 4;
+
+                for (var x = 0; x < clampedWidth; x++)
+                {
+                    var sourcePixelOffset = sourceOffset + x * 4;
+                    var destinationPixelOffset = destinationOffset + x * 4;
+                    _outputBuffer[destinationPixelOffset] = _captureBuffer[sourcePixelOffset + 2];
+                    _outputBuffer[destinationPixelOffset + 1] = _captureBuffer[sourcePixelOffset + 1];
+                    _outputBuffer[destinationPixelOffset + 2] = _captureBuffer[sourcePixelOffset];
+                    _outputBuffer[destinationPixelOffset + 3] = _captureBuffer[sourcePixelOffset + 3];
+                }
             }
         }
 
-        private void DisposeTexture(CaptureSlot slot, string textureName)
+        private void EnsureOutputImage(int width, int height)
         {
-            if (!slot.HasTexture)
+            if (_outputImage != null && _outputWidth == width && _outputHeight == height)
+                return;
+
+            DisposeTexture();
+            _outputImage?.Dispose();
+            _outputImage = new Image<Rgba32>(width, height);
+            _outputWidth = width;
+            _outputHeight = height;
+            _outputBuffer = new byte[width * height * 4];
+            _previousOutputBuffer = new byte[width * height * 4];
+            _hasSnapshot = false;
+        }
+
+        private void CopyOutputBufferToImage(int width, int height)
+        {
+            _outputImage!.ProcessPixelRows(accessor =>
+            {
+                for (var y = 0; y < height; y++)
+                {
+                    var row = accessor.GetRowSpan(y);
+                    var sourceOffset = y * width * 4;
+                    for (var x = 0; x < row.Length; x++)
+                    {
+                        var pixelOffset = sourceOffset + x * 4;
+                        row[x] = new Rgba32(
+                            _outputBuffer[pixelOffset],
+                            _outputBuffer[pixelOffset + 1],
+                            _outputBuffer[pixelOffset + 2],
+                            _outputBuffer[pixelOffset + 3]);
+                    }
+                }
+            });
+        }
+
+        private void DisposeTexture()
+        {
+            if (!_hasTexture)
                 return;
 
             try
             {
-                _graphics.DisposeTexture(textureName);
+                _graphics.DisposeTexture(TextureName);
             }
             catch
             {
                 // The host may already have cleared textures during plugin reload.
             }
 
-            slot.HasTexture = false;
-            slot.HasSnapshot = false;
-        }
-
-        private sealed class CaptureSlot : IDisposable
-        {
-            public GdiBitmap? Bitmap { get; set; }
-            public GdiGraphics? Graphics { get; set; }
-            public Image<Rgba32>? Image { get; set; }
-            public byte[] PixelBuffer { get; set; } = Array.Empty<byte>();
-            public byte[] PreviousPixelBuffer { get; set; } = Array.Empty<byte>();
-            public bool HasTexture { get; set; }
-            public bool HasSnapshot { get; set; }
-            public int BitmapWidth { get; set; }
-            public int BitmapHeight { get; set; }
-
-            public void Dispose()
-            {
-                Graphics?.Dispose();
-                Graphics = null;
-                Bitmap?.Dispose();
-                Bitmap = null;
-                Image?.Dispose();
-                Image = null;
-                PixelBuffer = Array.Empty<byte>();
-                PreviousPixelBuffer = Array.Empty<byte>();
-                BitmapWidth = 0;
-                BitmapHeight = 0;
-                HasTexture = false;
-                HasSnapshot = false;
-            }
+            _hasTexture = false;
+            _hasSnapshot = false;
         }
 
         private static Vector2 ToPositiveSize(Vector2 size)
