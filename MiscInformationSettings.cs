@@ -39,6 +39,7 @@ namespace MiscInformation
     [Submenu(CollapsedByDefault = true)]
     public class CloneFrameSettings
     {
+        // TODO: Investigate direct skill icon/texture data from ExileCore memory to replace screen capture.
         [Menu("Enable Clone Frame", "Incredibly performance intensive. Capture only the skills you actually want to see. Lower values = more performance intensive.")]
         public ToggleNode Enable { get; set; } = new ToggleNode(false);
 
