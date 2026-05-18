@@ -17,7 +17,7 @@ namespace MiscInformation
     internal sealed class ScreenCloneFrame : IDisposable
     {
         private const string TextureName = "MiscInformation.CloneFrame";
-        private const int MaxCaptureDimension = 128;
+        private const int MaxCaptureDimension = 256;
 
         private readonly ExileCore2.Graphics _graphics;
         private GdiBitmap? _captureBitmap;

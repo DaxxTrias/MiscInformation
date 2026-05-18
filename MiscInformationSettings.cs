@@ -46,19 +46,19 @@ namespace MiscInformation
         public ToggleNode ShowInTown { get; set; } = new ToggleNode(true);
 
         [Menu("Source Position", "Top-left corner of the captured region, relative to the game client.")]
-        public RangeNode<Vector2> SourcePosition { get; set; } = new RangeNode<Vector2>(new Vector2(720, 950), new Vector2(-4000, -4000), Vector2.One * 4000);
+        public RangeNode<Vector2> SourcePosition { get; set; } = new RangeNode<Vector2>(new Vector2(1430, 1015), new Vector2(-4000, -4000), Vector2.One * 4000);
 
         [Menu("Source Size", "Width and height of the captured region.")]
-        public RangeNode<Vector2> SourceSize { get; set; } = new RangeNode<Vector2>(new Vector2(128, 96), Vector2.One, Vector2.One * 128);
+        public RangeNode<Vector2> SourceSize { get; set; } = new RangeNode<Vector2>(new Vector2(256, 48), Vector2.One, Vector2.One * 256);
 
         [Menu("Target Position", "Top-left corner where the captured region is drawn.")]
-        public RangeNode<Vector2> TargetPosition { get; set; } = new RangeNode<Vector2>(new Vector2(820, 560), new Vector2(-4000, -4000), Vector2.One * 4000);
+        public RangeNode<Vector2> TargetPosition { get; set; } = new RangeNode<Vector2>(new Vector2(880, 290), new Vector2(-4000, -4000), Vector2.One * 4000);
 
         [Menu("Target Size", "Width and height of the mirrored image.")]
-        public RangeNode<Vector2> TargetSize { get; set; } = new RangeNode<Vector2>(new Vector2(280, 56), Vector2.One, Vector2.One * 2000);
+        public RangeNode<Vector2> TargetSize { get; set; } = new RangeNode<Vector2>(new Vector2(150, 55), Vector2.One, Vector2.One * 2000);
 
         [Menu("Opacity", "0 is invisible, 255 is fully opaque.")]
-        public RangeNode<int> Opacity { get; set; } = new RangeNode<int>(230, 0, 255);
+        public RangeNode<int> Opacity { get; set; } = new RangeNode<int>(150, 0, 255);
 
         [Menu("Refresh Interval (ms)", "Higher values reduce capture cost. 66ms is about 15 fps.")]
         public RangeNode<int> RefreshIntervalMs { get; set; } = new RangeNode<int>(66, 16, 1000);
