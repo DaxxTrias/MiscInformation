@@ -79,7 +79,7 @@ namespace MiscInformation
         [Menu("Opacity", "0 is invisible, 255 is fully opaque.")]
         public RangeNode<int> Opacity { get; set; } = new RangeNode<int>(150, 0, 255);
 
-        [Menu("Refresh Interval (ms)", "How often to sample selected slots. Unchanged snapshots reuse cached textures. Lower values = better performance.")]
+        [Menu("Refresh Interval (ms)", "How often to sample selected slots. Unchanged snapshots reuse cached textures. Higher values = better performance.")]
         public RangeNode<int> RefreshIntervalMs { get; set; } = new RangeNode<int>(250, 16, 1000);
 
         [Menu("Draw Source Outline")]
