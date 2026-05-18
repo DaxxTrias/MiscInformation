@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Windows.Forms;
 using ExileCore2;
 using ExileCore2.PoEMemory.Components;
@@ -9,7 +8,6 @@ using ExileCore2.Shared;
 using ExileCore2.Shared.Cache;
 using ExileCore2.Shared.Enums;
 using ExileCore2.Shared.Helpers;
-using JM.LinqFaster;
 using Input = ExileCore2.Input;
 using Vector2N = System.Numerics.Vector2;
 using System.Runtime.InteropServices;
@@ -38,20 +36,19 @@ namespace MiscInformation
             {84, 77.7f}
         };
 
-        private TimeCache<bool> CalcXp;
+        private TimeCache<bool> CalcXp = null!;
         private bool CanRender;
-        private DebugInformation debugInformation;
+        private DebugInformation debugInformation = null!;
         private Vector2N drawTextVector2;
         private string latency = "";
         private RectangleF leftPanelStartDrawRect = RectangleF.Empty;
-        private TimeCache<bool> LevelPenalty;
+        private TimeCache<bool> LevelPenalty = null!;
         private double levelXpPenalty, partyXpPenalty;
         private float percentGot;
         private double partytime = 4000;
         private string ping = "";
         private DateTime startTime, lastTime;
         private long startXp, getXp, xpLeftQ;
-        private float startY;
         private double time;
         private string Time = "";
         private string timeLeft = "";
@@ -61,7 +58,6 @@ namespace MiscInformation
         private string xpReceivingText = "";
         private ScreenCloneFrame? cloneFrame;
         private DateTime _lastHighPingActionUtc = DateTime.MinValue;
-        private float? _initialLeftPanelY;
 
         private const int KEYEVENTF_EXTENDEDKEY = 0x0001;
         private const int KEYEVENTF_KEYUP = 0x0002;
@@ -184,7 +180,7 @@ namespace MiscInformation
             return true;
         }
 
-        private void OnEntityListWrapperOnPlayerUpdate(object sender, Entity entity)
+        private void OnEntityListWrapperOnPlayerUpdate(object? sender, Entity entity)
         {
             var playerComp = entity?.GetComponent<Player>();
             if (playerComp == null)
@@ -207,7 +203,6 @@ namespace MiscInformation
         public override void AreaChange(AreaInstance area)
         {
             LevelPenalty.ForceUpdate();
-            _initialLeftPanelY = null;
         }
 
         public override void Tick()
@@ -390,21 +385,34 @@ namespace MiscInformation
             if (entities.Count == 0)
                 return 1;
 
-            var levels = entities.Select(y => y.GetComponent<Player>()?.Level ?? 100).ToList();
+            double levelWeightSum = 0;
+            foreach (var entity in entities)
+            {
+                var level = entity.GetComponent<Player>()?.Level ?? 100;
+                levelWeightSum += Math.Pow(level + 10, 2.71);
+            }
+
             var characterLevel = GameController.Player.GetComponent<Player>()?.Level ?? 100;
-            var partyXpPenalty = Math.Pow(characterLevel + 10, 2.71) / levels.SumF(level => Math.Pow(level + 10, 2.71));
-            return partyXpPenalty * levels.Count;
+            var partyXpPenalty = Math.Pow(characterLevel + 10, 2.71) / levelWeightSum;
+            return partyXpPenalty * entities.Count;
         }
 
         public override void Render()
         {
-            RenderCloneFrame();
+            if (!CanRender || !Settings.Enable.Value)
+            {
+                if (!Settings.Enable.Value || !Settings.CloneFrame.Enable.Value)
+                    cloneFrame?.Dispose();
+                return;
+            }
 
-            if (!CanRender)
+            var currentArea = GameController.Area.CurrentArea;
+            if (currentArea == null)
                 return;
 
-            if (GameController.Area.CurrentArea == null || !Settings.ShowInTown && GameController.Area.CurrentArea.IsTown ||
-                !Settings.ShowInTown && GameController.Area.CurrentArea.IsHideout)
+            RenderCloneFrame(currentArea);
+
+            if (!Settings.ShowInTown.Value && (currentArea.IsTown || currentArea.IsHideout))
                 return;
 
             // Store the original value of StartDrawPoint and restore it at the end (DPSMeter pattern)
@@ -413,29 +421,21 @@ namespace MiscInformation
             var position = Settings.DisplayPosition.Value;
             var startY = position.Y;
 
-            var leftSideItems = new[]
-            {
-                (Time, Settings.TimerTextColor),
-                (ping, Settings.LatencyTextColor)
-            };
-
-            var rightSideItems = new[]
-            {
-                (areaName, Settings.UseBuiltInAreaColor ? GameController.Area.CurrentArea.AreaColorName : Settings.AreaTextColor.Value),
-                (timeLeft, Settings.TimeLeftColor.Value),
-                (xpReceivingText, Settings.XphTextColor.Value),
-                (xpGetLeft, Settings.XphTextColor.Value)
-            };
-
             // Measure columns to compute layout similar to DPSMeter's simple X/Y handling
-            var leftMeasures = leftSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList();
-            var rightMeasures = rightSideItems.Select(x => Graphics.MeasureText(x.Item1)).ToList();
+            var timerMeasure = Graphics.MeasureText(Time);
+            var pingMeasure = Graphics.MeasureText(ping);
+            var areaMeasure = Graphics.MeasureText(areaName);
+            var timeLeftMeasure = Graphics.MeasureText(timeLeft);
+            var xpReceivingMeasure = Graphics.MeasureText(xpReceivingText);
+            var xpGetLeftMeasure = Graphics.MeasureText(xpGetLeft);
 
-            var leftMaxX = leftMeasures.DefaultIfEmpty(Vector2N.Zero).Max(v => v.X);
-            var leftTotalY = leftMeasures.Sum(v => v.Y);
+            var leftMaxX = Math.Max(timerMeasure.X, pingMeasure.X);
+            var leftTotalY = timerMeasure.Y + pingMeasure.Y;
 
-            var rightMaxX = rightMeasures.DefaultIfEmpty(Vector2N.Zero).Max(v => v.X);
-            var rightTotalY = rightMeasures.Sum(v => v.Y);
+            var rightMaxX = Math.Max(
+                Math.Max(areaMeasure.X, timeLeftMeasure.X),
+                Math.Max(xpReceivingMeasure.X, xpGetLeftMeasure.X));
+            var rightTotalY = areaMeasure.Y + timeLeftMeasure.Y + xpReceivingMeasure.Y + xpGetLeftMeasure.Y;
 
             var padding = 5f;
             var sumX = leftMaxX + rightMaxX + padding;
@@ -455,23 +455,24 @@ namespace MiscInformation
             Vector2N leftTextPosition = new Vector2N(positionLeft.X, startY);
             Vector2N rightTextPosition = new Vector2N(position.X, startY);
 
-            foreach (var (text, color) in leftSideItems)
-            {
-                drawTextVector2 = Graphics.DrawText(text, leftTextPosition, color);
-                leftTextPosition.Y += drawTextVector2.Y;
-            }
+            drawTextVector2 = Graphics.DrawText(Time, leftTextPosition, Settings.TimerTextColor);
+            leftTextPosition.Y += drawTextVector2.Y;
+            drawTextVector2 = Graphics.DrawText(ping, leftTextPosition, Settings.LatencyTextColor);
 
-            foreach (var (text, color) in rightSideItems)
-            {
-                drawTextVector2 = Graphics.DrawText(text, rightTextPosition, color, FontAlign.Right);
-                rightTextPosition.Y += drawTextVector2.Y;
-            }
+            var areaColor = Settings.UseBuiltInAreaColor.Value ? currentArea.AreaColorName : Settings.AreaTextColor.Value;
+            drawTextVector2 = Graphics.DrawText(areaName, rightTextPosition, areaColor, FontAlign.Right);
+            rightTextPosition.Y += drawTextVector2.Y;
+            drawTextVector2 = Graphics.DrawText(timeLeft, rightTextPosition, Settings.TimeLeftColor.Value, FontAlign.Right);
+            rightTextPosition.Y += drawTextVector2.Y;
+            drawTextVector2 = Graphics.DrawText(xpReceivingText, rightTextPosition, Settings.XphTextColor.Value, FontAlign.Right);
+            rightTextPosition.Y += drawTextVector2.Y;
+            drawTextVector2 = Graphics.DrawText(xpGetLeft, rightTextPosition, Settings.XphTextColor.Value, FontAlign.Right);
 
             // Restore the original StartDrawPoint; do not adjust the global left panel baseline
             GameController.LeftPanel.StartDrawPoint = originalStartDrawPoint;
         }
 
-        private void RenderCloneFrame()
+        private void RenderCloneFrame(AreaInstance area)
         {
             cloneFrame ??= new ScreenCloneFrame(Graphics);
 
@@ -481,10 +482,6 @@ namespace MiscInformation
                 cloneFrame.Dispose();
                 return;
             }
-
-            var area = GameController.Area.CurrentArea;
-            if (area == null)
-                return;
 
             if (!settings.ShowInTown.Value && (area.IsTown || area.IsHideout))
                 return;

@@ -17,9 +17,12 @@ namespace MiscInformation
     internal sealed class ScreenCloneFrame : IDisposable
     {
         private const string TextureName = "MiscInformation.CloneFrame";
+        private const int MaxCaptureDimension = 128;
 
         private readonly ExileCore2.Graphics _graphics;
         private GdiBitmap? _captureBitmap;
+        private GdiGraphics? _captureGraphics;
+        private Image<Rgba32>? _captureImage;
         private byte[] _pixelBuffer = Array.Empty<byte>();
         private DateTime _nextCaptureUtc = DateTime.MinValue;
         private bool _hasTexture;
@@ -39,7 +42,7 @@ namespace MiscInformation
                 return;
             }
 
-            var sourceSize = ToPositiveSize(settings.SourceSize.Value);
+            var sourceSize = ToClampedCaptureSize(settings.SourceSize.Value);
             var targetSize = ToPositiveSize(settings.TargetSize.Value);
             if (sourceSize.X < 1 || sourceSize.Y < 1 || targetSize.X < 1 || targetSize.Y < 1)
                 return;
@@ -67,8 +70,13 @@ namespace MiscInformation
         public void Dispose()
         {
             DisposeTexture();
+            _captureGraphics?.Dispose();
+            _captureGraphics = null;
             _captureBitmap?.Dispose();
             _captureBitmap = null;
+            _captureImage?.Dispose();
+            _captureImage = null;
+            _pixelBuffer = Array.Empty<byte>();
         }
 
         private void TryRefreshTexture(CloneFrameSettings settings, RectangleF windowRect, RectangleF sourceRect)
@@ -81,27 +89,25 @@ namespace MiscInformation
 
             var width = Math.Max(1, (int)MathF.Round(sourceRect.Width));
             var height = Math.Max(1, (int)MathF.Round(sourceRect.Height));
-            EnsureBitmap(width, height);
 
             try
             {
-                using (var captureGraphics = GdiGraphics.FromImage(_captureBitmap!))
-                {
-                    captureGraphics.CopyFromScreen(
-                        (int)MathF.Round(windowRect.X + sourceRect.X),
-                        (int)MathF.Round(windowRect.Y + sourceRect.Y),
-                        0,
-                        0,
-                        _captureBitmap!.Size);
-                }
+                EnsureBitmap(width, height);
 
-                using var image = CreateImageFromBitmap(_captureBitmap!);
-                _graphics.AddOrUpdateImage(TextureName, image);
+                _captureGraphics!.CopyFromScreen(
+                    (int)MathF.Round(windowRect.X + sourceRect.X),
+                    (int)MathF.Round(windowRect.Y + sourceRect.Y),
+                    0,
+                    0,
+                    _captureBitmap!.Size);
+
+                CopyBitmapToImage(_captureBitmap!, _captureImage!);
+                _graphics.AddOrUpdateImage(TextureName, _captureImage!);
                 _hasTexture = true;
             }
             catch
             {
-                _hasTexture = false;
+                DisposeTexture();
             }
         }
 
@@ -110,15 +116,20 @@ namespace MiscInformation
             if (_captureBitmap != null && _bitmapWidth == width && _bitmapHeight == height)
                 return;
 
+            DisposeTexture();
+            _captureGraphics?.Dispose();
+            _captureGraphics = null;
             _captureBitmap?.Dispose();
             _captureBitmap = new GdiBitmap(width, height, PixelFormat.Format32bppArgb);
+            _captureGraphics = GdiGraphics.FromImage(_captureBitmap);
+            _captureImage?.Dispose();
+            _captureImage = new Image<Rgba32>(width, height);
             _bitmapWidth = width;
             _bitmapHeight = height;
             _pixelBuffer = new byte[width * height * 4];
-            DisposeTexture();
         }
 
-        private Image<Rgba32> CreateImageFromBitmap(GdiBitmap bitmap)
+        private void CopyBitmapToImage(GdiBitmap bitmap, Image<Rgba32> image)
         {
             var rect = new GdiRectangle(0, 0, bitmap.Width, bitmap.Height);
             var data = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
@@ -132,7 +143,6 @@ namespace MiscInformation
 
                 Marshal.Copy(data.Scan0, _pixelBuffer, 0, requiredBytes);
 
-                var image = new Image<Rgba32>(bitmap.Width, bitmap.Height);
                 image.ProcessPixelRows(accessor =>
                 {
                     for (var y = 0; y < accessor.Height; y++)
@@ -152,8 +162,6 @@ namespace MiscInformation
                         }
                     }
                 });
-
-                return image;
             }
             finally
             {
@@ -181,6 +189,13 @@ namespace MiscInformation
         private static Vector2 ToPositiveSize(Vector2 size)
         {
             return new Vector2(MathF.Max(1, size.X), MathF.Max(1, size.Y));
+        }
+
+        private static Vector2 ToClampedCaptureSize(Vector2 size)
+        {
+            return new Vector2(
+                Math.Clamp(size.X, 1, MaxCaptureDimension),
+                Math.Clamp(size.Y, 1, MaxCaptureDimension));
         }
     }
 }

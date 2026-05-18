@@ -49,7 +49,7 @@ namespace MiscInformation
         public RangeNode<Vector2> SourcePosition { get; set; } = new RangeNode<Vector2>(new Vector2(720, 950), new Vector2(-4000, -4000), Vector2.One * 4000);
 
         [Menu("Source Size", "Width and height of the captured region.")]
-        public RangeNode<Vector2> SourceSize { get; set; } = new RangeNode<Vector2>(new Vector2(480, 96), Vector2.One, Vector2.One * 2000);
+        public RangeNode<Vector2> SourceSize { get; set; } = new RangeNode<Vector2>(new Vector2(128, 96), Vector2.One, Vector2.One * 128);
 
         [Menu("Target Position", "Top-left corner where the captured region is drawn.")]
         public RangeNode<Vector2> TargetPosition { get; set; } = new RangeNode<Vector2>(new Vector2(820, 560), new Vector2(-4000, -4000), Vector2.One * 4000);
