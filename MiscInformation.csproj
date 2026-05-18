@@ -15,6 +15,7 @@
     <PackageReference Include="LinqFaster" Version="1.0.0" />
     <PackageReference Include="SharpDX" Version="4.2.0" />
     <PackageReference Include="SharpDX.Mathematics" Version="4.2.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
   </ItemGroup>
   <ItemGroup>
     <!--Rather than replacing this with absolute or relative paths, you should create an environment variable for wherever your HUD folder is-->

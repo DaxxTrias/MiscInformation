@@ -59,6 +59,7 @@ namespace MiscInformation
         private string xpGetLeft = "";
         private string xpRate = "";
         private string xpReceivingText = "";
+        private ScreenCloneFrame? cloneFrame;
         private DateTime _lastHighPingActionUtc = DateTime.MinValue;
         private float? _initialLeftPanelY;
 
@@ -179,6 +180,7 @@ namespace MiscInformation
                 OnEntityListWrapperOnPlayerUpdate(this, playerEntity);
 
             debugInformation = new DebugInformation("Game FPS", "Collect game fps", false);
+            cloneFrame = new ScreenCloneFrame(Graphics);
             return true;
         }
 
@@ -396,6 +398,8 @@ namespace MiscInformation
 
         public override void Render()
         {
+            RenderCloneFrame();
+
             if (!CanRender)
                 return;
 
@@ -465,6 +469,40 @@ namespace MiscInformation
 
             // Restore the original StartDrawPoint; do not adjust the global left panel baseline
             GameController.LeftPanel.StartDrawPoint = originalStartDrawPoint;
+        }
+
+        private void RenderCloneFrame()
+        {
+            cloneFrame ??= new ScreenCloneFrame(Graphics);
+
+            var settings = Settings.CloneFrame;
+            if (!settings.Enable.Value)
+            {
+                cloneFrame.Dispose();
+                return;
+            }
+
+            var area = GameController.Area.CurrentArea;
+            if (area == null)
+                return;
+
+            if (!settings.ShowInTown.Value && (area.IsTown || area.IsHideout))
+                return;
+
+            try
+            {
+                cloneFrame.Render(settings, GameController.Window.GetWindowRectangle());
+            }
+            catch
+            {
+                // Screen capture can fail during focus/display transitions; try again next frame.
+            }
+        }
+
+        public override void Dispose()
+        {
+            cloneFrame?.Dispose();
+            base.Dispose();
         }
     }
 }
