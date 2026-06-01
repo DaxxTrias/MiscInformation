@@ -140,7 +140,7 @@ namespace MiscInformation
                 partytime += time;
                 time = 0;
                 CalculateXp();
-                var areaCurrentArea = GameController.Area.CurrentArea;
+                var areaCurrentArea = GameController?.Area?.CurrentArea;
 
                 if (areaCurrentArea == null)
                     return false;
@@ -156,7 +156,7 @@ namespace MiscInformation
 
                 if (partytime > 4900)
                 {
-                    var levelPenaltyValue = LevelPenalty.Value;
+                    _ = LevelPenalty?.Value;
                 }
 
                 return true;
@@ -202,7 +202,7 @@ namespace MiscInformation
 
         public override void AreaChange(AreaInstance area)
         {
-            LevelPenalty.ForceUpdate();
+            LevelPenalty?.ForceUpdate();
         }
 
         public override void Tick()
@@ -212,32 +212,43 @@ namespace MiscInformation
 
         private void TickLogic()
         {
-            time += GameController.DeltaTime;
-            
-            // Defensive null checks for game state
-            if (GameController?.Game?.IngameState == null)
+            var gameController = GameController;
+            var calcXp = CalcXp;
+            if (gameController == null || calcXp == null)
             {
                 CanRender = false;
                 return;
             }
 
-            var gameUi = GameController.Game.IngameState.IngameUi;
+            time += gameController.DeltaTime;
+
+            // Defensive null checks for game state
+            var ingameState = gameController.Game?.IngameState;
+            if (ingameState == null)
+            {
+                CanRender = false;
+                return;
+            }
+
+            var gameUi = ingameState.IngameUi;
             if (gameUi == null)
             {
                 CanRender = false;
                 return;
             }
 
-            if (GameController.Area.CurrentArea == null || gameUi.InventoryPanel.IsVisible)
+            var currentArea = gameController.Area?.CurrentArea;
+            if (currentArea == null || gameUi.InventoryPanel?.IsVisible == true)
             {
                 CanRender = false;
                 return;
             }
 
-            var UIHover = GameController.Game.IngameState.UIHover;
+            var uiHover = ingameState.UIHover;
+            var tooltip = uiHover?.Tooltip;
 
-            if (UIHover.Tooltip != null && UIHover.Tooltip.IsVisibleLocal &&
-                UIHover.Tooltip.GetClientRectCache.Intersects(leftPanelStartDrawRect))
+            if (tooltip != null && tooltip.IsVisibleLocal &&
+                tooltip.GetClientRectCache.Intersects(leftPanelStartDrawRect))
             {
                 CanRender = false;
                 return;
@@ -245,11 +256,10 @@ namespace MiscInformation
 
             CanRender = true;
 
-            var calcXpValue = CalcXp.Value;
+            _ = calcXp.Value;
             //var ingameStateCurFps = GameController?.Game?.IngameState?.CurFps ?? 1.0f;
             //debugInformation.Tick = ingameStateCurFps;
-            
-            var currentArea = GameController.Area.CurrentArea;
+
             var areaSuffix = (currentArea.RealLevel >= 65)
                 ? $" - T{currentArea.RealLevel - 64}"
                 : "";
@@ -260,7 +270,7 @@ namespace MiscInformation
             int currentLatency = 0;
             try
             {
-                currentLatency = GameController.Game.IngameState.ServerData?.Latency ?? 0;
+                currentLatency = ingameState.ServerData?.Latency ?? 0;
             }
             catch
             {
@@ -276,13 +286,13 @@ namespace MiscInformation
             {
                 try
                 {
-                    var area = GameController.Area.CurrentArea;
+                    var area = currentArea;
                     if (area is { IsTown: false, IsHideout: false })
                     {
                         int latencyMs = 0;
                         try
                         {
-                            latencyMs = GameController.Game.IngameState.ServerData?.Latency ?? 0;
+                            latencyMs = ingameState.ServerData?.Latency ?? 0;
                         }
                         catch
                         {
@@ -316,19 +326,20 @@ namespace MiscInformation
 
         private void CalculateXp()
         {
-            var level = GameController.Player.GetComponent<Player>()?.Level ?? 100;
-
-            if (level >= 100)
+            var player = GameController?.Player?.GetComponent<Player>();
+            if (player == null || player.Level >= 100)
             {
-                // player can't level up, just show fillers
+                // Player is unavailable during transitions, or already at max level.
                 xpRate = "0.00 xp/h";
                 timeLeft = "--h--m--s";
                 return;
             }
 
-            long currentXp = GameController.Player.GetComponent<Player>().XP;
+            var level = player.Level;
+            long currentXp = player.XP;
             getXp = currentXp - startXp;
-            var rate = (currentXp - startXp) / (DateTime.UtcNow - startTime).TotalHours;
+            var elapsedHours = (DateTime.UtcNow - startTime).TotalHours;
+            var rate = elapsedHours > 0 ? (currentXp - startXp) / elapsedHours : 0;
             xpRate = $"{ConvertHelper.ToShorten(rate, "0.00")} xp/h";
 
             if (level >= 0 && level + 1 < Constants.PlayerXpLevels.Length && rate > 1)
@@ -352,12 +363,12 @@ namespace MiscInformation
 
         private double LevelXpPenalty()
         {
-            var area = GameController.Area.CurrentArea;
+            var area = GameController?.Area?.CurrentArea;
             if (area == null)
                 return 1d;
 
             var arenaLevel = area.RealLevel;
-            var characterLevel = GameController.Player.GetComponent<Player>()?.Level ?? 100;
+            var characterLevel = GameController?.Player?.GetComponent<Player>()?.Level ?? 100;
 
 
             if (arenaLevel > 70 && !ArenaEffectiveLevels.ContainsKey(arenaLevel))
@@ -382,7 +393,11 @@ namespace MiscInformation
 
         private double PartyXpPenalty()
         {
-            var entities = GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Player];
+            var entityListWrapper = GameController?.EntityListWrapper;
+            if (entityListWrapper == null ||
+                !entityListWrapper.ValidEntitiesByType.TryGetValue(EntityType.Player, out var entities) ||
+                entities == null)
+                return 1;
 
             if (entities.Count == 0)
                 return 1;
@@ -394,7 +409,7 @@ namespace MiscInformation
                 levelWeightSum += Math.Pow(level + 10, 2.71);
             }
 
-            var characterLevel = GameController.Player.GetComponent<Player>()?.Level ?? 100;
+            var characterLevel = GameController?.Player?.GetComponent<Player>()?.Level ?? 100;
             var partyXpPenalty = Math.Pow(characterLevel + 10, 2.71) / levelWeightSum;
             return partyXpPenalty * entities.Count;
         }
