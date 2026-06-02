@@ -47,28 +47,28 @@ namespace MiscInformation
         public ToggleNode ShowInTown { get; set; } = new ToggleNode(true);
 
         [Menu("Capture Child 0")]
-        public ToggleNode CaptureSkill1 { get; set; } = new ToggleNode(false);
+        public ToggleNode CaptureChild0 { get; set; } = new ToggleNode(false);
 
         [Menu("Capture Child 1")]
-        public ToggleNode CaptureSkill2 { get; set; } = new ToggleNode(false);
+        public ToggleNode CaptureChild1 { get; set; } = new ToggleNode(false);
 
         [Menu("Capture Child 2")]
-        public ToggleNode CaptureSkill3 { get; set; } = new ToggleNode(false);
+        public ToggleNode CaptureChild2 { get; set; } = new ToggleNode(false);
 
         [Menu("Capture Child 3")]
-        public ToggleNode CaptureSkill4 { get; set; } = new ToggleNode(true);
+        public ToggleNode CaptureChild3 { get; set; } = new ToggleNode(true);
 
         [Menu("Capture Child 4")]
-        public ToggleNode CaptureSkill5 { get; set; } = new ToggleNode(true);
+        public ToggleNode CaptureChild4 { get; set; } = new ToggleNode(true);
 
         [Menu("Capture Child 5")]
-        public ToggleNode CaptureSkill6 { get; set; } = new ToggleNode(true);
+        public ToggleNode CaptureChild5 { get; set; } = new ToggleNode(true);
 
         [Menu("Capture Child 6")]
-        public ToggleNode CaptureSkill7 { get; set; } = new ToggleNode(true);
+        public ToggleNode CaptureChild6 { get; set; } = new ToggleNode(true);
 
         [Menu("Capture Child 7")]
-        public ToggleNode CaptureSkill8 { get; set; } = new ToggleNode(true);
+        public ToggleNode CaptureChild7 { get; set; } = new ToggleNode(true);
 
         [Menu("Target Position", "Top-left corner where the captured region is drawn.")]
         public RangeNode<Vector2> TargetPosition { get; set; } = new RangeNode<Vector2>(new Vector2(850, 315), new Vector2(-4000, -4000), Vector2.One * 4000);
